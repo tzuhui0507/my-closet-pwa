@@ -1,17 +1,20 @@
+/* index.css */
 /* ===== Reset / Base ===== */
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent; /* 移除手機點擊藍色高亮 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
+  /* 確保高度撐滿且不鎖死滾動 */
   height: 100%;
   margin: 0;
   padding: 0;
-  /* 移除 overflow: hidden 和 position: fixed，否則安全區域無效 */
   background: var(--color-bg);
   color: var(--color-text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* 解決 iOS 彈性滾動背景變色的問題 */
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ===== Global Variables ===== */

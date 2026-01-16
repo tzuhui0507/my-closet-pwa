@@ -1,42 +1,64 @@
+/* app.css */
 #root {
-  /* 移除原本的 padding-top 和 padding-bottom */
   min-height: 100vh;
+  /* 這裡改用 min-height: -webkit-fill-available 確保在 iOS 更精準 */
+  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   margin: 0;
-  padding: 0; /* 改為 0，讓背景色鋪滿全螢幕 */
+  padding: 0;
 }
 
-/* 頂部 Header：從動態島下方開始 */
+/* 頂部 Header：背景會填滿到動態島後方 */
 .header {
   position: sticky;
   top: 0;
   z-index: 1000;
+  width: 100%;
   background-color: var(--color-bg);
-  /* 關鍵：只在內部加上避開動態島的填充 */
-  padding-top: env(safe-area-inset-top);
+  /* 將文字推到安全區下方，但背景色維持在最頂端 */
+  padding-top: env(safe-area-inset-top); 
   border-bottom: 1px solid var(--color-border);
+  /* 確保 Header 內容垂直置中且有呼吸感 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(44px + env(safe-area-inset-top)); 
 }
 
-/* 底部 TabBar：模仿 IG 效果 */
+/* 底部 TabBar：背景完全到底部，內容避開小白條 */
 .tab-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
+  width: 100%;
   background-color: var(--color-surface);
-  /* 關鍵：透過 padding 讓圖示避開底線，但背景延伸到底部 */
-  padding-bottom: env(safe-area-inset-bottom); 
-  height: calc(50px + env(safe-area-inset-bottom)); /* 總高度包含安全區 */
+  /* 關鍵：背景延伸到底部，圖示向上推開安全距離 */
+  padding-bottom: env(safe-area-inset-bottom);
+  /* IG 風格的高度：基準 50px + 安全區 */
+  height: calc(50px + env(safe-area-inset-bottom));
   display: flex;
-  align-items: center; /* 讓圖示在剩餘空間置中 */
+  justify-content: space-around;
+  align-items: center;
   border-top: 1px solid var(--color-border);
 }
 
-/* 內容區塊 */
+/* 內容區塊：確保不會被固定的 header 和 tab-bar 擋住內容 */
 .main-content {
   flex: 1;
-  /* 確保內容不會被 fixed 的 TabBar 擋住 */
-  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  width: 100%;
+  /* 頂部留出 Header 的高度 */
+  padding-top: 10px; 
+  /* 底部留出 TabBar 的空間，避免最後一個卡片被擋住 */
+  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  padding: 1.5rem;
+  margin: 1rem;
+  border: 1px solid var(--color-border);
 }
