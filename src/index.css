@@ -1,53 +1,45 @@
 /* ===== Reset / Base ===== */
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* 移除手機點擊藍色高亮 */
 }
 
-html, body, #root {
-  height: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important; /* ⭐ 強制鎖死瀏覽器，絕不准出現大滾輪 */
-  position: fixed;
-  width: 100%;
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* 移除 overflow: hidden 和 position: fixed，否則安全區域無效 */
+  background: var(--color-bg);
+  color: var(--color-text-main);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* ===== Global Variables (🌓 支援自動切換) ===== */
+/* ===== Global Variables ===== */
 :root {
-  /* 🎨 淺色模式佈局顏色 */
-  --color-bg: #faf7f5;          /* 奶白背景 */
-  --color-surface: #ffffff;     /* 卡片白 */
-  --color-primary-soft: #f1e4e2; /* 淡粉卡片 */
-  --color-border: #e6dcd9;      /* 分隔線 */
-  --color-text-main: #5a4a47;   /* 深灰棕字 */
-  --color-text-sub: #9c8f8c;    /* 次要文字 */
-  
-  /* 🎨 品牌固定色（通常不隨深色模式改變，或僅微調） */
-  --color-primary: #d8a6a1;     /* 裸玫瑰粉 */
-  --color-accent: #8fa58a;      /* 橄欖綠 */
-
-  /* 🎯 UI 規格 */
+  --color-bg: #faf7f5;
+  --color-surface: #ffffff;
+  --color-primary-soft: #f1e4e2;
+  --color-border: #e6dcd9;
+  --color-text-main: #5a4a47;
+  --color-text-sub: #9c8f8c;
+  --color-primary: #d8a6a1;
+  --color-accent: #8fa58a;
   --radius-card: 16px;
   --radius-button: 12px;
-  
-  /* 穿搭標籤專用（自動適配） */
   --tag-bg-blue: #E8F1F8;
   --tag-text-blue: #5B8FB9;
   --tag-bg-orange: #FDF2E9;
   --tag-text-orange: #D48166;
 }
 
-/* 🌙 深色模式覆蓋定義 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1c1c1e;        /* 深灰色背景 */
-    --color-surface: #2c2c2e;   /* 較淺的深灰色卡片 */
-    --color-primary-soft: #3a3a3c; /* 適合深色的次要容器色 */
-    --color-border: #38383a;    /* 深色分隔線 */
-    --color-text-main: #f2f2f7; /* 近白色文字 */
-    --color-text-sub: #8e8e93;  /* 淺灰色副標 */
-    
-    /* 深色模式下的穿搭標籤 */
+    --color-bg: #1c1c1e;
+    --color-surface: #2c2c2e;
+    --color-primary-soft: #3a3a3c;
+    --color-border: #38383a;
+    --color-text-main: #f2f2f7;
+    --color-text-sub: #8e8e93;
     --tag-bg-blue: #1b3a4b;
     --tag-text-blue: #7bbce0;
     --tag-bg-orange: #4a2a1b;
@@ -55,17 +47,10 @@ html, body, #root {
   }
 }
 
-/* ❌ 不要 flex 在 body */
-body {
-  background: var(--color-bg);
-  color: var(--color-text-main);
-  transition: background-color 0.3s ease, color 0.3s ease; /* ⭐ 切換時有平滑過渡 */
-}
-
 /* ===== Elements ===== */
 a {
   font-weight: 500;
-  color: var(--color-primary); /* 改用變數 */
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -75,13 +60,8 @@ button {
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
-  font-family: inherit;
   background-color: var(--color-surface);
-  color: var(--text-main);
+  color: var(--color-text-main);
   cursor: pointer;
   transition: all 0.25s;
-}
-
-button:focus {
-  outline: none;
 }
