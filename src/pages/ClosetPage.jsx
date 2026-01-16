@@ -3,30 +3,40 @@ import { useState, useEffect } from 'react'
 import BottomSheet from '../components/BottomSheet'
 import CategorySection from '../components/CategorySection'
 import {
-  Cloud, Eraser, Heart, Moon, Rainbow, SearchCheck, Sparkles, Star, X, Check
+  Cloud, Eraser, Heart, Moon, Rainbow, SearchCheck, Sparkles, Star, X, Check,
+  Sun, Snowflake, Leaf, CloudSun
 } from 'lucide-react'
 
-/* ================= 1. 加深顏色與圖示樣式設定 ================= */
+/* ================= 1. 樣式與圖示設定 ================= */
 const CATEGORY_ICON = {
   top: Sparkles, bottom: Heart, skirt: Cloud, 
   outer: Moon, shoes: Star, bag: Rainbow 
 }
 
-// 加強飽和度：用於選中時的圖示背景、圖示主色與卡片邊框
+// 季節專用圖示與顏色 (對應附圖一模一樣的配色)
+const SEASON_CONFIG = {
+  spring: { icon: CloudSun, main: '#FFB7B2', bg: '#FFF1F1', label: '春天' },
+  summer: { icon: Sun,      main: '#FFD97D', bg: '#FFF9E5', label: '夏天' },
+  fall:   { icon: Leaf,     main: '#D4A373', bg: '#F9F4EF', label: '秋天' },
+  winter: { icon: Snowflake,main: '#A2D2FF', bg: '#F0F8FF', label: '冬天' }
+};
+
 const CATEGORY_STYLE = {
-  top:   { main: '#FF5F5F', bg: '#FFE4E1' }, // 櫻花粉
-  bottom: { main: '#FF8C00', bg: '#FFEFD5' }, // 奶油橘
-  skirt:  { main: '#D4A017', bg: '#FFF9E3' }, // 檸檬黃
-  outer:  { main: '#2E7D32', bg: '#E8F5E9' }, // 薄荷綠
-  shoes:  { main: '#5C5CFF', bg: '#E6E6FA' }, // 薰衣草紫
-  bag:    { main: '#FBC02D', bg: '#FAFAD2' }  // 暖陽黃
+  top:    { main: '#FF5F5F', bg: '#FFE4E1' }, 
+  bottom: { main: '#FF8C00', bg: '#FFEFD5' }, 
+  skirt:  { main: '#D4A017', bg: '#FFF9E3' }, 
+  outer:  { main: '#2E7D32', bg: '#E8F5E9' }, 
+  shoes:  { main: '#5C5CFF', bg: '#E6E6FA' }, 
+  bag:    { main: '#FBC02D', bg: '#FAFAD2' }  
 };
 
 /* ================= 2. 優化網格選項元件 ================= */
 
-function GridOption({ label, active, onClick, icon: Icon, typeKey, dotColor, emoji, isAll }) {
-  // 取得對應顏色的深色版本與背景色
-  const style = CATEGORY_STYLE[typeKey] || { main: 'var(--color-primary)', bg: 'var(--color-primary-soft)' };
+function GridOption({ label, active, onClick, icon: Icon, typeKey, dotColor, isSeason, isAll }) {
+  // 根據類型選擇樣式設定
+  let config = { main: '#8E735B', bg: '#F5F0E9' };
+  if (isSeason) config = SEASON_CONFIG[typeKey];
+  else if (typeKey) config = CATEGORY_STYLE[typeKey];
 
   return (
     <div
@@ -39,49 +49,45 @@ function GridOption({ label, active, onClick, icon: Icon, typeKey, dotColor, emo
         gap: '10px',
         padding: '20px 10px',
         borderRadius: '24px',
-        // ⭐ 適配深色模式：底色使用變數
-        background: 'var(--color-surface)',
-        // 選中時顯示對應深色的邊框
-        border: `2.5px solid ${active ? style.main : 'var(--color-border)'}`,
-        boxShadow: active ? `0 8px 20px var(--shadow-color)` : 'none',
+        background: '#fff',
+        border: `2.5px solid ${active ? config.main : '#F5F0E9'}`,
+        boxShadow: active ? `0 8px 20px rgba(0,0,0,0.06)` : 'none',
         cursor: 'pointer',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         textAlign: 'center',
         gridColumn: isAll ? 'span 2' : 'span 1'
       }}
     >
-      {Icon ? (
+      {(Icon || (isSeason && config.icon)) ? (
         <div style={{ 
-          background: style.bg, 
+          background: config.bg, 
           padding: '10px', 
           borderRadius: '16px', 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {/* 圖示顏色：維持各分類專屬飽和色 */}
-          <Icon size={24} color={style.main} strokeWidth={2.8} />
+          {isSeason ? (
+            <config.icon size={26} color={config.main} strokeWidth={2.2} />
+          ) : (
+            <Icon size={24} color={config.main} strokeWidth={1.8} />
+          )}
         </div>
       ) : isAll ? (
-        /* 放大 All 文字，視覺重量與 Icon 統一 */
         <div style={{ height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           <span style={{ fontSize: '24px', fontWeight: 900, color: active ? style.main : 'var(--color-text-sub)' }}>All</span>
+           <span style={{ fontSize: '24px', fontWeight: 900, color: active ? config.main : '#8E735B' }}>All</span>
         </div>
       ) : dotColor ? (
-        /* 移除白框，純顏色圓點顯示 */
         <div style={{ 
           width: 28, height: 28, borderRadius: '50%', backgroundColor: dotColor,
-          border: dotColor === '#FFFFFF' ? '1px solid var(--color-border)' : 'none' 
+          border: dotColor === '#FFFFFF' ? '1px solid #EEE' : 'none' 
         }} />
-      ) : emoji ? (
-        <span style={{ fontSize: 26 }}>{emoji}</span>
       ) : null}
       
       <span style={{ 
         fontSize: '15px', 
         fontWeight: active ? 900 : 500, 
-        // ⭐ 適配深色模式：文字色使用變數
-        color: active ? 'var(--color-text-main)' : 'var(--color-text-sub)' 
+        color: active ? '#4A4238' : '#8E735B' 
       }}>
         {label}
       </span>
@@ -98,19 +104,15 @@ function getColorHex(value) {
   return hexMap[value] || '#EEE';
 }
 
-/* ================= 3. Sheet Header 元件 ================= */
-
 function SheetHeader({ title, onCancel, onConfirm }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: '0 4px' }}>
-      <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-sub)', display: 'flex' }}><X size={24} /></button>
-      <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-text-main)' }}>{title}</span>
-      <button onClick={onConfirm} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex' }}><Check size={26} strokeWidth={3} /></button>
+      <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E735B', display: 'flex' }}><X size={24} /></button>
+      <span style={{ fontWeight: 800, fontSize: 18, color: '#4A4238' }}>{title}</span>
+      <button onClick={onConfirm} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B18F89', display: 'flex' }}><Check size={26} strokeWidth={3} /></button>
     </div>
   )
 }
-
-/* ================= 4. 主要頁面組件 ================= */
 
 function ClosetPage({
   items = [], setSelected, filter = 'all', setFilter, colorFilter = [], 
@@ -151,16 +153,8 @@ function ClosetPage({
   return (
     <>
       <div style={{ padding: '20px 16px' }}>
-        {/* 篩選卡片：適配深色模式 */}
-        <div style={{ 
-          background: 'var(--color-surface)', 
-          borderRadius: 24, 
-          padding: 20, 
-          marginBottom: 24, 
-          border: '1px solid var(--color-border)', 
-          boxShadow: '0 4px 15px var(--shadow-color)' 
-        }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-main)' }}>
+        <div style={{ background: '#fff', borderRadius: 24, padding: 20, marginBottom: 24, border: '1px solid #EAE0D5', boxShadow: '0 4px 15px rgba(160, 144, 128, 0.05)' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#4A4238' }}>
               <SearchCheck size={20} />
               <span>篩選衣櫥</span>
            </div>
@@ -171,7 +165,7 @@ function ClosetPage({
               {hasActiveFilter && (
                 <button 
                   onClick={() => { setFilter('all'); setColorFilter([]); setSeasonFilter([]); }} 
-                  style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: 16, border: 'none', background: 'var(--color-primary)', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+                  style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: 16, border: 'none', background: '#8fa58a', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
                 >
                   <Eraser size={16} /> 清除
                 </button>
@@ -179,7 +173,6 @@ function ClosetPage({
            </div>
         </div>
 
-        {/* 分類清單渲染 */}
         {CATEGORY_ORDER
           .filter(cat => filter === 'all' || cat.key === filter)
           .map(cat => {
@@ -197,25 +190,17 @@ function ClosetPage({
                     const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
                     input.onchange = e => handleAdd(e, cat.key); input.click();
                   }}
-                  // 衣櫥卡片標題列維持淺色背景，適配深淺色模式由 CategorySection 內部處理
-                  color={CATEGORY_STYLE[cat.key]?.bg || 'var(--color-primary-soft)'}
+                  color={CATEGORY_STYLE[cat.key]?.bg || '#F5F0E9'}
                   icon={CATEGORY_ICON[cat.key]}
-                  categoryKey={cat.key}
                 />
               </div>
             );
           })}
       </div>
 
-      {/* 1. 選擇分類：2 欄 4 列佈局 */}
       <BottomSheet visible={sheet === 'category'} onClose={() => setSheet(null)}>
         <SheetHeader title="選擇分類" onCancel={() => setSheet(null)} onConfirm={handleConfirm} />
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(2, 1fr)', 
-          gap: '16px', 
-          padding: '0 16px 24px' 
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', padding: '0 16px 24px' }}>
           <GridOption isAll label="全部分類" active={tempFilter === 'all'} onClick={() => setTempFilter('all')} />
           {CATEGORY_ORDER.map(c => (
             <GridOption key={c.key} typeKey={c.key} label={c.label} active={tempFilter === c.key} onClick={() => setTempFilter(c.key)} icon={CATEGORY_ICON[c.key]} />
@@ -223,15 +208,9 @@ function ClosetPage({
         </div>
       </BottomSheet>
 
-      {/* 2. 選擇顏色 */}
       <BottomSheet visible={sheet === 'color'} onClose={() => setSheet(null)}>
         <SheetHeader title="選擇顏色" onCancel={() => setSheet(null)} onConfirm={handleConfirm} />
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(3, 1fr)', 
-          gap: '14px', 
-          padding: '0 12px 24px' 
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', padding: '0 12px 24px' }}>
           {COLOR_OPTIONS.map(([value, label]) => {
             const checked = tempColor.includes(value);
             return (
@@ -241,14 +220,20 @@ function ClosetPage({
         </div>
       </BottomSheet>
 
-      {/* 3. 選擇季節 */}
       <BottomSheet visible={sheet === 'season'} onClose={() => setSheet(null)}>
         <SheetHeader title="選擇季節" onCancel={() => setSheet(null)} onConfirm={handleConfirm} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, padding: '0 12px 24px' }}>
           {SEASON_OPTIONS.map(([value, label]) => {
             const checked = tempSeason.includes(value);
             return (
-              <GridOption key={value} label={label} active={checked} emoji={value === 'spring' ? '🌸' : value === 'summer' ? '☀️' : value === 'fall' ? '🍂' : '❄️'} onClick={() => setTempSeason(prev => checked ? prev.filter(v => v !== value) : [...prev, value])} />
+              <GridOption 
+                key={value} 
+                isSeason 
+                typeKey={value} 
+                label={label} 
+                active={checked} 
+                onClick={() => setTempSeason(prev => checked ? prev.filter(v => v !== value) : [...prev, value])} 
+              />
             );
           })}
         </div>
@@ -259,17 +244,9 @@ function ClosetPage({
 
 function FilterChip({ label, value, onClick }) {
   return (
-    <button onClick={onClick} style={{ 
-      padding: '10px 18px', 
-      borderRadius: 16, 
-      border: '1px solid var(--color-border)', 
-      background: 'var(--color-surface)', 
-      fontSize: 13, fontWeight: 500, 
-      display: 'flex', gap: 8, cursor: 'pointer',
-      color: 'var(--color-text-main)'
-    }}>
-      <span style={{ color: 'var(--color-text-sub)' }}>{label}</span>
-      <span style={{ fontWeight: 700 }}>{value}</span>
+    <button onClick={onClick} style={{ padding: '10px 18px', borderRadius: 16, border: '1px solid #EAE0D5', background: '#fff', fontSize: 13, fontWeight: 500, display: 'flex', gap: 8, cursor: 'pointer' }}>
+      <span style={{ color: '#8E735B' }}>{label}</span>
+      <span style={{ fontWeight: 700, color: '#4A4238' }}>{value}</span>
     </button>
   )
 }
