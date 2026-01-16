@@ -5,16 +5,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
-  /* 確保高度撐滿且不鎖死滾動 */
-  height: 100%;
+html, body, #root {
   margin: 0;
   padding: 0;
-  background: var(--color-bg);
-  color: var(--color-text-main);
-  transition: background-color 0.3s ease, color 0.3s ease;
-  /* 解決 iOS 彈性滾動背景變色的問題 */
-  -webkit-overflow-scrolling: touch;
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* 防止整個網頁亂滾，讓 main-content 滾就好 */
 }
 
 /* ===== Global Variables ===== */

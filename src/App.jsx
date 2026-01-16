@@ -7,7 +7,7 @@ import OutfitPage from './pages/OutfitPage'
 import ItemDetailPage from './pages/ItemDetailPage'
 import CalendarPage from './pages/CalendarPage'
 
-/* ===== 常數定義 (保持不變) ===== */
+/* ===== 常數定義 ===== */
 const CATEGORY_ORDER = [
   { key: 'top', label: '上衣' },
   { key: 'bottom', label: '褲子' },
@@ -21,7 +21,7 @@ const COLOR_LABEL = { black: '黑色', white: '白色', gray: '灰色', blue: '�
 const SEASON_LABEL = { spring: '春天', summer: '夏天', fall: '秋天', winter: '冬天', all: '四季' }
 
 function App() {
-  /* ===== 狀態控制 (保持不變) ===== */
+  /* ===== 狀態控制 ===== */
   const [items, setItems] = useState([])
   const [selected, setSelected] = useState(null)
   const [mode, setMode] = useState('closet') 
@@ -39,11 +39,12 @@ function App() {
   const [colorFilter, setColorFilter] = useState([]);
   const [seasonFilter, setSeasonFilter] = useState([]);
 
-  /* ===== 資料持久化 & 處理邏輯 (保持不變) ===== */
+  /* ===== 資料持久化 & 處理邏輯 ===== */
   useEffect(() => {
     const saved = localStorage.getItem('closet-items')
     if (saved) setItems(JSON.parse(saved))
   }, [])
+
   function saveItems(next) { setItems(next); localStorage.setItem('closet-items', JSON.stringify(next)); }
   function saveOutfits(next) { setOutfits(next); localStorage.setItem('closet-outfits', JSON.stringify(next)); }
   function saveCalendarLogs(next) { setCalendarLogs(next); localStorage.setItem('closet-calendar', JSON.stringify(next)); }
@@ -97,22 +98,19 @@ function App() {
     )
   }
 
-  const themeActive = 'var(--color-primary)';
-  const inactiveColor = 'var(--color-text-sub)';
-
   return (
-    <div id="root">
-      {/* 1. Header：套用 CSS Class 以支援 Safe Area */}
+    <div className="app-container">
+      {/* 1. Header：背景延伸到動態島下方 */}
       {!isEditing && (
         <header className="header">
-          <div style={{ flex: 1, textAlign: 'center', fontWeight: 800, fontSize: 18, color: 'var(--color-text-main)' }}>
+          <div className="header-title">
             {mode === 'closet' ? '我的衣櫥' : mode === 'outfit' ? '我的穿搭' : '穿搭日曆'}
           </div>
         </header>
       )}
 
-      {/* 2. Content Area：使用 main-content class */}
-      <main className="main-content" style={{ overflowY: isEditing ? 'hidden' : 'auto' }}>
+      {/* 2. Content Area：主要捲動區塊 */}
+      <main className={`main-content ${isEditing ? 'no-scroll' : ''}`}>
         {mode === 'closet' && (
           <ClosetPage 
             items={items} setSelected={setSelected} handleAdd={handleAdd} 
@@ -136,21 +134,30 @@ function App() {
         )}
       </main>
 
-      {/* 3. Tab Bar：套用 tab-bar class */}
+      {/* 3. Tab Bar：模仿 IG 沉浸式效果 */}
       {!isEditing && (
         <footer className="tab-bar">
-          <button onClick={() => setMode('closet')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', width: '33%', color: mode === 'closet' ? themeActive : inactiveColor }}>
-            <LayoutGrid size={22} strokeWidth={mode === 'closet' ? 2.5 : 2} />
-            <span style={{ fontSize: '11px', fontWeight: mode === 'closet' ? '700' : '500' }}>衣櫥</span>
-          </button>
-          <button onClick={() => setMode('outfit')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', width: '33%', color: mode === 'outfit' ? themeActive : inactiveColor }}>
-            <Shirt size={22} strokeWidth={mode === 'outfit' ? 2.5 : 2} />
-            <span style={{ fontSize: '11px', fontWeight: mode === 'outfit' ? '700' : '500' }}>穿搭</span>
-          </button>
-          <button onClick={() => setMode('calendar')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', width: '33%', color: mode === 'calendar' ? themeActive : inactiveColor }}>
-            <CalendarDays size={22} strokeWidth={mode === 'calendar' ? 2.5 : 2} />
-            <span style={{ fontSize: '11px', fontWeight: mode === 'calendar' ? '700' : '500' }}>日曆</span>
-          </button>
+          <div 
+            className={`tab-item ${mode === 'closet' ? 'active' : ''}`} 
+            onClick={() => setMode('closet')}
+          >
+            <LayoutGrid size={24} />
+            <span>衣櫥</span>
+          </div>
+          <div 
+            className={`tab-item ${mode === 'outfit' ? 'active' : ''}`} 
+            onClick={() => setMode('outfit')}
+          >
+            <Shirt size={24} />
+            <span>穿搭</span>
+          </div>
+          <div 
+            className={`tab-item ${mode === 'calendar' ? 'active' : ''}`} 
+            onClick={() => setMode('calendar')}
+          >
+            <CalendarDays size={24} />
+            <span>日曆</span>
+          </div>
         </footer>
       )}
     </div>

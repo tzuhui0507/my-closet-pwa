@@ -1,64 +1,71 @@
-/* app.css */
-#root {
-  min-height: 100vh;
-  /* 這裡改用 min-height: -webkit-fill-available 確保在 iOS 更精準 */
-  min-height: -webkit-fill-available;
+/* 讓外層容器撐滿整個手機螢幕 */
+.app-container {
   display: flex;
   flex-direction: column;
-  margin: 0;
-  padding: 0;
-}
-
-/* 頂部 Header：背景會填滿到動態島後方 */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  width: 100%;
+  height: 100vh;
+  height: -webkit-fill-available; /* 修正 iOS 高度計算 */
   background-color: var(--color-bg);
-  /* 將文字推到安全區下方，但背景色維持在最頂端 */
-  padding-top: env(safe-area-inset-top); 
-  border-bottom: 1px solid var(--color-border);
-  /* 確保 Header 內容垂直置中且有呼吸感 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: calc(44px + env(safe-area-inset-top)); 
 }
 
-/* 底部 TabBar：背景完全到底部，內容避開小白條 */
+/* 頂部 Header：背景延伸到最頂部，文字避開動態島 */
+.header {
+  flex-shrink: 0; /* 禁止被擠壓 */
+  background-color: var(--color-bg);
+  padding-top: env(safe-area-inset-top); /* 關鍵：自動避開瀏海 */
+  padding-bottom: 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--color-border);
+  z-index: 100;
+}
+
+/* 中間內容區：自動捲動 */
+.main-content {
+  flex: 1;
+  overflow-y: auto; /* 只有這裡會捲動 */
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+
+/* 底部 TabBar：模仿 IG 沉浸式效果 */
 .tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  width: 100%;
+  flex-shrink: 0;
   background-color: var(--color-surface);
-  /* 關鍵：背景延伸到底部，圖示向上推開安全距離 */
-  padding-bottom: env(safe-area-inset-bottom);
-  /* IG 風格的高度：基準 50px + 安全區 */
-  height: calc(50px + env(safe-area-inset-bottom));
+  /* 關鍵：讓背景延伸到最底端的小白條區域 */
+  padding-bottom: env(safe-area-inset-bottom); 
+  height: calc(60px + env(safe-area-inset-bottom));
+  
   display: flex;
   justify-content: space-around;
   align-items: center;
   border-top: 1px solid var(--color-border);
+  z-index: 100;
 }
 
-/* 內容區塊：確保不會被固定的 header 和 tab-bar 擋住內容 */
-.main-content {
+/* 確保 Tab 內部的文字/圖示垂直置中在可用空間內 */
+.tab-item {
   flex: 1;
-  width: 100%;
-  /* 頂部留出 Header 的高度 */
-  padding-top: 10px; 
-  /* 底部留出 TabBar 的空間，避免最後一個卡片被擋住 */
-  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--color-text-sub);
+  cursor: pointer;
+  transition: color 0.2s ease;
 }
 
-.card {
-  background: var(--color-surface);
-  border-radius: var(--radius-card);
-  padding: 1.5rem;
-  margin: 1rem;
-  border: 1px solid var(--color-border);
+.tab-item.active {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.tab-item span {
+  font-size: 11px;
+}
+
+/* 標題樣式 */
+.header-title {
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--color-text-main);
 }
