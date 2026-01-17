@@ -37,14 +37,14 @@ function ItemDetailPage({
   const [tempValue, setTempValue] = useState([]);
   const [isRemoving, setIsRemoving] = useState(false);
 
-  // 🚀 手動精修相關狀態 (含縮放平移)
+  // 🚀 精修狀態控制
   const [isEditing, setIsEditing] = useState(false);
   const [brushMode, setBrushMode] = useState('erase'); 
   const [brushSize, setBrushSize] = useState(20);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [lastTouch, setLastTouch] = useState(null);
-  
+
   const canvasRef = useRef(null);
   const offscreenCanvasRef = useRef(null);
 
@@ -74,20 +74,14 @@ function ItemDetailPage({
   const handleAIRemoveBackground = async (targetItem) => {
     try {
       setIsRemoving(true);
-      const net = await bodyPix.load({
-        architecture: 'MobileNetV1',
-        outputStride: 16,
-        multiplier: 0.75,
-        quantBytes: 2
-      });
+      const net = await bodyPix.load({ architecture: 'MobileNetV1', outputStride: 16, multiplier: 0.75, quantBytes: 2 });
       const img = new Image();
       img.src = targetItem.original;
       img.crossOrigin = "Anonymous";
       img.onload = async () => {
         const segmentation = await net.segmentPerson(img, { internalResolution: 'medium', segmentationThreshold: 0.7 });
         const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
+        canvas.width = img.width; canvas.height = img.height;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height); 
         ctx.drawImage(img, 0, 0);
@@ -110,11 +104,9 @@ function ItemDetailPage({
     if (isEditing && canvasRef.current) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d', { alpha: true });
-      
       const img = new Image();
       img.src = item.original;
       img.crossOrigin = "Anonymous";
-      
       const cutoutImg = new Image();
       cutoutImg.src = item.cutout || item.original;
       cutoutImg.crossOrigin = "Anonymous";
@@ -125,74 +117,59 @@ function ItemDetailPage({
         const offCanvas = document.createElement('canvas');
         offCanvas.width = img.width;
         offCanvas.height = img.height;
-        const offCtx = offCanvas.getContext('2d', { alpha: true });
-        offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-        offCtx.drawImage(img, 0, 0);
+        offCanvas.getContext('2d').drawImage(img, 0, 0);
         offscreenCanvasRef.current = offCanvas;
-
         cutoutImg.onload = () => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(cutoutImg, 0, 0);
         };
       };
-      // 🚀 開啟編輯時重置縮放
-      setScale(1);
-      setOffset({ x: 0, y: 0 });
+      setScale(1); setOffset({ x: 0, y: 0 });
     }
-  }, [isEditing, item.cutout, item.original]);
+  }, [isEditing]);
 
-  // 🚀 核心繪圖與觸控縮放邏輯
+  // 🚀 關鍵修正：精確座標轉換
   const handleTouch = (e) => {
     if (!isEditing) return;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
     const touches = e.touches;
 
     if (touches.length === 2) {
-      // 兩指：縮放與移動
-      const touch1 = touches[0];
-      const touch2 = touches[1];
-      const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
-      const centerX = (touch1.clientX + touch2.clientX) / 2;
-      const centerY = (touch1.clientY + touch2.clientY) / 2;
+      // 兩指：縮放與拖曳
+      const t1 = touches[0]; const t2 = touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const centerX = (t1.clientX + t2.clientX) / 2;
+      const centerY = (t1.clientY + t2.clientY) / 2;
 
       if (lastTouch && lastTouch.dist) {
-        const deltaScale = dist / lastTouch.dist;
-        setScale(prev => Math.min(Math.max(prev * deltaScale, 0.5), 5)); // 限制 0.5 ~ 5 倍
-        setOffset(prev => ({
-          x: prev.x + (centerX - lastTouch.centerX),
-          y: prev.y + (centerY - lastTouch.centerY)
-        }));
+        setScale(prev => Math.min(Math.max(prev * (dist / lastTouch.dist), 0.5), 5));
+        setOffset(prev => ({ x: prev.x + (centerX - lastTouch.centerX), y: prev.y + (centerY - lastTouch.centerY) }));
       }
       setLastTouch({ dist, centerX, centerY });
     } else if (touches.length === 1) {
-      // 單指：繪圖 (需補償縮放倍率與偏移量)
-      e.preventDefault();
+      // 單指：精準繪圖
       const t = touches[0];
-      const x = (t.clientX - rect.left - offset.x) * (canvas.width / (rect.width * scale));
-      const y = (t.clientY - rect.top - offset.y) * (canvas.height / (rect.height * scale));
+      const ctx = canvas.getContext('2d');
+      
+      // 修正公式：(觸控點 - 畫布框左上角 - 平移量) / (CSS寬度 * 縮放倍率 / 原始寬度)
+      const x = (t.clientX - rect.left - offset.x) * (canvas.width / (rect.width));
+      const y = (t.clientY - rect.top - offset.y) * (canvas.height / (rect.height));
 
       if (brushMode === 'erase') {
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.beginPath();
-        ctx.arc(x, y, brushSize / scale, 0, Math.PI * 2); // 筆刷隨縮放調整大小
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(x / scale, y / scale, brushSize / scale, 0, Math.PI * 2); ctx.fill();
       } else {
         ctx.globalCompositeOperation = 'source-over';
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, brushSize / scale, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(offscreenCanvasRef.current, 0, 0); 
-        ctx.restore();
+        ctx.save(); ctx.beginPath(); ctx.arc(x / scale, y / scale, brushSize / scale, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(offscreenCanvasRef.current, 0, 0); ctx.restore();
       }
     }
   };
 
   return (
     <AppLayout
-      title={isEditing ? "手動精修" : "單品詳情"}
+      title={isEditing ? "精修去背" : "單品詳情"}
       left={<button onClick={isEditing ? () => setIsEditing(false) : onBack} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><ArrowLeft size={20} /></button>}
     >
       <div style={{ padding: 16 }}>
@@ -202,16 +179,10 @@ function ItemDetailPage({
         }}>
           {isEditing ? (
             <div style={{ 
-              width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-              transition: lastTouch ? 'none' : 'transform 0.1s linear'
+              width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none'
             }}>
-              <canvas 
-                ref={canvasRef} 
-                onTouchMove={handleTouch} 
-                onTouchEnd={() => setLastTouch(null)} 
-                style={{ maxWidth: '100%', maxHeight: '100%', cursor: 'crosshair', touchAction: 'none' }} 
-              />
+              <canvas ref={canvasRef} onTouchMove={handleTouch} onTouchEnd={() => setLastTouch(null)} style={{ maxWidth: '100%', maxHeight: '100%' }} />
             </div>
           ) : (
             <img src={item.cutout} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: isRemoving ? 0.5 : 1 }} alt="item cutout" />
@@ -232,8 +203,8 @@ function ItemDetailPage({
         {isEditing ? (
           <div style={{ background: '#fff', padding: 16, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-              <button onClick={() => setBrushMode('erase')} style={{ flex: 1, padding: 10, borderRadius: 12, border: 'none', display: 'flex', justifyContent: 'center', gap: 6, background: brushMode === 'erase' ? '#B18F89' : '#f5f5f5', color: brushMode === 'erase' ? '#fff' : '#8E735B' }}><Eraser size={18} /> 橡皮擦 (減)</button>
-              <button onClick={() => setBrushMode('restore')} style={{ flex: 1, padding: 10, borderRadius: 12, border: 'none', display: 'flex', justifyContent: 'center', gap: 6, background: brushMode === 'restore' ? '#B18F89' : '#f5f5f5', color: brushMode === 'restore' ? '#fff' : '#8E735B' }}><Pencil size={18} /> 恢復畫筆 (加)</button>
+              <button onClick={() => setBrushMode('erase')} style={{ flex: 1, padding: 10, borderRadius: 12, border: 'none', display: 'flex', justifyContent: 'center', gap: 6, background: brushMode === 'erase' ? '#B18F89' : '#f5f5f5', color: brushMode === 'erase' ? '#fff' : '#8E735B' }}><Eraser size={18} /> 橡皮擦</button>
+              <button onClick={() => setBrushMode('restore')} style={{ flex: 1, padding: 10, borderRadius: 12, border: 'none', display: 'flex', justifyContent: 'center', gap: 6, background: brushMode === 'restore' ? '#B18F89' : '#f5f5f5', color: brushMode === 'restore' ? '#fff' : '#8E735B' }}><Pencil size={18} /> 恢復畫筆</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 12, color: '#8E735B' }}>大小</span>
@@ -266,6 +237,7 @@ function ItemDetailPage({
         )}
       </div>
 
+      {/* 彈窗部分維持原樣 */}
       <BottomSheet visible={showCategorySheet} onClose={() => setShowCategorySheet(false)}>
         {renderModalHeader("選擇分類", () => { handleUpdate({ category: tempValue }); setShowCategorySheet(false); })}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, padding: '0 8px 20px' }}>
@@ -277,7 +249,7 @@ function ItemDetailPage({
                 padding: '24px 10px', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'pointer',
                 background: '#fff', border: `2.5px solid ${active ? config.main : '#F5F0E9'}`, transition: 'all 0.2s'
               }}>
-                <div style={{ background: config.bg, padding: '10px', borderRadius: '16px', display: 'flex' }}> <config.icon size={24} color={config.main} strokeWidth={2} /> </div>
+                <div style={{ background: config.bg, padding: '10px', borderRadius: '16px', display: 'flex' }}> <config.icon size={24} color={config.main} /> </div>
                 <div style={{ fontSize: 15, fontWeight: active ? 900 : 500, color: active ? '#4A4238' : '#8E735B' }}>{label}</div>
               </div>
             )
