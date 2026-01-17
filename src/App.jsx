@@ -76,50 +76,61 @@ function App() {
 
   /* ===== 圖片處理邏輯 ===== */
   function handleAdd(e, categoryKey) {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const img = new Image()
-      img.src = reader.result
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 800
-        let width = img.width, height = img.height
-        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-        const newItem = { id: crypto.randomUUID(), original: compressedDataUrl, cutout: compressedDataUrl, category: categoryKey, color: null, seasons: [] }
-        const next = [newItem, ...items];
-        saveItems(next);
-        setSelected(newItem);
-      }
-    }
-    reader.readAsDataURL(file)
-  }
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+        const img = new Image()
+        img.src = reader.result
+        img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 800
+        let width = img.width, height = img.height
+        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+        canvas.width = width; canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        // 確保畫布起始是透明的
+        ctx.clearRect(0, 0, width, height); 
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // 🚀 關鍵修正：改用 image/png 才能保留透明背景
+        const compressedDataUrl = canvas.toDataURL('image/png'); 
+        
+        const newItem = { id: crypto.randomUUID(), original: compressedDataUrl, cutout: compressedDataUrl, category: categoryKey, color: null, seasons: [] }
+        const next = [newItem, ...items];
+        saveItems(next);
+        setSelected(newItem);
+        }
+    }
+    reader.readAsDataURL(file)
+    }
 
   function removeBackground(item) {
-    const img = new Image()
-    img.src = item.original
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) data[i + 3] = 0;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      const result = canvas.toDataURL('image/png');
-      const next = items.map(i => i.id === item.id ? { ...i, cutout: result } : i);
-      saveItems(next);
-      setSelected({ ...item, cutout: result });
-    }
-  }
+    const img = new Image()
+    img.src = item.original
+    img.crossOrigin = "Anonymous"; // 避免跨域權限問題
+    img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width; canvas.height = img.height;
+        // 🚀 關鍵修正：明確要求支援 alpha 通道
+        const ctx = canvas.getContext('2d', { alpha: true }); 
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+        // 簡易判斷白色
+        if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) data[i + 3] = 0;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        const result = canvas.toDataURL('image/png');
+        const next = items.map(i => i.id === item.id ? { ...i, cutout: result } : i);
+        saveItems(next);
+        setSelected({ ...item, cutout: result });
+    }
+   }
 
   const handleEditOutfitFromCalendar = (outfit) => {
     setCurrentOutfitId(outfit.id);

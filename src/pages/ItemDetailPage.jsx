@@ -37,10 +37,14 @@ function ItemDetailPage({
   const [tempValue, setTempValue] = useState([]);
   const [isRemoving, setIsRemoving] = useState(false);
 
-  // 🚀 精修相關狀態
+  // 🚀 手動精修相關狀態 (含縮放平移)
   const [isEditing, setIsEditing] = useState(false);
-  const [brushMode, setBrushMode] = useState('erase'); // 'erase' (減) 或 'restore' (加)
+  const [brushMode, setBrushMode] = useState('erase'); 
   const [brushSize, setBrushSize] = useState(20);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [lastTouch, setLastTouch] = useState(null);
+  
   const canvasRef = useRef(null);
   const offscreenCanvasRef = useRef(null);
 
@@ -67,7 +71,6 @@ function ItemDetailPage({
     </div>
   );
 
-  // --- 1. AI 自動去背 ---
   const handleAIRemoveBackground = async (targetItem) => {
     try {
       setIsRemoving(true);
@@ -86,6 +89,7 @@ function ItemDetailPage({
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
         ctx.drawImage(img, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const pixelData = imageData.data;
@@ -102,14 +106,15 @@ function ItemDetailPage({
     }
   };
 
-  // --- 2. 手動精修畫布邏輯 ---
   useEffect(() => {
     if (isEditing && canvasRef.current) {
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const ctx = canvas.getContext('2d', { alpha: true });
+      
       const img = new Image();
       img.src = item.original;
       img.crossOrigin = "Anonymous";
+      
       const cutoutImg = new Image();
       cutoutImg.src = item.cutout || item.original;
       cutoutImg.crossOrigin = "Anonymous";
@@ -117,11 +122,12 @@ function ItemDetailPage({
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
-        // 建立隱藏畫布存放原圖，供「加回」使用
         const offCanvas = document.createElement('canvas');
         offCanvas.width = img.width;
         offCanvas.height = img.height;
-        offCanvas.getContext('2d').drawImage(img, 0, 0);
+        const offCtx = offCanvas.getContext('2d', { alpha: true });
+        offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+        offCtx.drawImage(img, 0, 0);
         offscreenCanvasRef.current = offCanvas;
 
         cutoutImg.onload = () => {
@@ -129,34 +135,58 @@ function ItemDetailPage({
           ctx.drawImage(cutoutImg, 0, 0);
         };
       };
+      // 🚀 開啟編輯時重置縮放
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
     }
   }, [isEditing, item.cutout, item.original]);
 
-  const handleDraw = (e) => {
+  // 🚀 核心繪圖與觸控縮放邏輯
+  const handleTouch = (e) => {
+    if (!isEditing) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
+    const touches = e.touches;
 
-    if (brushMode === 'erase') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.arc(x, y, brushSize, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, brushSize, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(offscreenCanvasRef.current, 0, 0); // 從原圖刷回來
-      ctx.restore();
+    if (touches.length === 2) {
+      // 兩指：縮放與移動
+      const touch1 = touches[0];
+      const touch2 = touches[1];
+      const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+      const centerX = (touch1.clientX + touch2.clientX) / 2;
+      const centerY = (touch1.clientY + touch2.clientY) / 2;
+
+      if (lastTouch && lastTouch.dist) {
+        const deltaScale = dist / lastTouch.dist;
+        setScale(prev => Math.min(Math.max(prev * deltaScale, 0.5), 5)); // 限制 0.5 ~ 5 倍
+        setOffset(prev => ({
+          x: prev.x + (centerX - lastTouch.centerX),
+          y: prev.y + (centerY - lastTouch.centerY)
+        }));
+      }
+      setLastTouch({ dist, centerX, centerY });
+    } else if (touches.length === 1) {
+      // 單指：繪圖 (需補償縮放倍率與偏移量)
+      e.preventDefault();
+      const t = touches[0];
+      const x = (t.clientX - rect.left - offset.x) * (canvas.width / (rect.width * scale));
+      const y = (t.clientY - rect.top - offset.y) * (canvas.height / (rect.height * scale));
+
+      if (brushMode === 'erase') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, brushSize / scale, 0, Math.PI * 2); // 筆刷隨縮放調整大小
+        ctx.fill();
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, brushSize / scale, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(offscreenCanvasRef.current, 0, 0); 
+        ctx.restore();
+      }
     }
   };
 
@@ -166,13 +196,23 @@ function ItemDetailPage({
       left={<button onClick={isEditing ? () => setIsEditing(false) : onBack} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><ArrowLeft size={20} /></button>}
     >
       <div style={{ padding: 16 }}>
-        {/* 🚀 圖片展示區 */}
         <div style={{ 
           background: isEditing ? 'url(https://www.transparenttextures.com/patterns/checkerboard.png)' : '#f5f5f5', 
-          borderRadius: 12, marginBottom: 12, height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' 
+          borderRadius: 12, marginBottom: 12, height: 380, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' 
         }}>
           {isEditing ? (
-            <canvas ref={canvasRef} onMouseMove={(e) => e.buttons === 1 && handleDraw(e)} onTouchMove={(e) => { e.preventDefault(); handleDraw(e); }} style={{ maxWidth: '100%', maxHeight: '100%', cursor: 'crosshair', touchAction: 'none' }} />
+            <div style={{ 
+              width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+              transition: lastTouch ? 'none' : 'transform 0.1s linear'
+            }}>
+              <canvas 
+                ref={canvasRef} 
+                onTouchMove={handleTouch} 
+                onTouchEnd={() => setLastTouch(null)} 
+                style={{ maxWidth: '100%', maxHeight: '100%', cursor: 'crosshair', touchAction: 'none' }} 
+              />
+            </div>
           ) : (
             <img src={item.cutout} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: isRemoving ? 0.5 : 1 }} alt="item cutout" />
           )}
@@ -182,9 +222,13 @@ function ItemDetailPage({
               <span style={{ fontSize: 14, fontWeight: 600, color: '#5a4a47' }}>AI 處理中...</span>
             </div>
           )}
+          {isEditing && (
+            <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(255,255,255,0.7)', padding: '4px 8px', borderRadius: 8, fontSize: 10, color: '#8E735B' }}>
+              💡 兩指縮放/移動，單指修補
+            </div>
+          )}
         </div>
 
-        {/* 🚀 工具欄 */}
         {isEditing ? (
           <div style={{ background: '#fff', padding: 16, borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -196,7 +240,7 @@ function ItemDetailPage({
               <input type="range" min="5" max="60" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} style={{ flex: 1, accentColor: '#B18F89' }} />
               <span style={{ fontSize: 12, width: 20 }}>{brushSize}</span>
             </div>
-            <button onClick={() => { handleUpdate({ cutout: canvasRef.current.toDataURL() }); setIsEditing(false); }} style={{ width: '100%', padding: '12px', background: '#4A4238', color: '#fff', borderRadius: 12, border: 'none', fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 8 }}><Save size={18} /> 儲存編輯</button>
+            <button onClick={() => { handleUpdate({ cutout: canvasRef.current.toDataURL('image/png') }); setIsEditing(false); }} style={{ width: '100%', padding: '12px', background: '#4A4238', color: '#fff', borderRadius: 12, border: 'none', fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 8 }}><Save size={18} /> 儲存編輯</button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
@@ -206,7 +250,6 @@ function ItemDetailPage({
           </div>
         )}
 
-        {/* 設定清單 (編輯時隱藏) */}
         {!isEditing && (
           <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: 20 }}>
             <SettingRow label="分類" value={CATEGORY_LABEL[item.category] || '未設定'} onClick={() => { setTempValue(item.category); setShowCategorySheet(true); }} />
@@ -223,7 +266,6 @@ function ItemDetailPage({
         )}
       </div>
 
-      {/* 🚀 彈窗選擇部分 (保留原有邏輯) */}
       <BottomSheet visible={showCategorySheet} onClose={() => setShowCategorySheet(false)}>
         {renderModalHeader("選擇分類", () => { handleUpdate({ category: tempValue }); setShowCategorySheet(false); })}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, padding: '0 8px 20px' }}>
@@ -243,7 +285,6 @@ function ItemDetailPage({
         </div>
       </BottomSheet>
 
-      {/* 顏色彈窗 */}
       <BottomSheet visible={showColorSheet} onClose={() => setShowColorSheet(false)}>
         {renderModalHeader("選擇顏色", () => { handleUpdate({ color: tempValue }); setShowColorSheet(false); })}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, padding: '0 8px 20px' }}>
@@ -263,7 +304,6 @@ function ItemDetailPage({
         </div>
       </BottomSheet>
 
-      {/* 季節彈窗 */}
       <BottomSheet visible={showSeasonSheet} onClose={() => setShowSeasonSheet(false)}>
         {renderModalHeader("選擇季節", () => { handleUpdate({ seasons: tempValue }); setShowSeasonSheet(false); })}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, padding: '0 8px 20px' }}>
